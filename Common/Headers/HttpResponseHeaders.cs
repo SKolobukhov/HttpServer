@@ -2,7 +2,7 @@
 
 namespace HttpServer.Common
 {
-    public sealed class ReadonlyHeadersCollection : HeadersCollection
+    public sealed class HttpResponseHeaders : HttpHeaders
     {
         public string this[string headerName]
         {
@@ -17,16 +17,16 @@ namespace HttpServer.Common
         }
 
 
-        public ReadonlyHeadersCollection()
+        public HttpResponseHeaders()
             : base(new Dictionary<string, string>())
         { }
 
-        public ReadonlyHeadersCollection(Dictionary<string, string> headers)
+        public HttpResponseHeaders(Dictionary<string, string> headers)
             : base(headers)
         { }
 
-        public ReadonlyHeadersCollection(HeadersCollection headersCollection)
-            : base(headersCollection)
+        public HttpResponseHeaders(HttpHeaders httpHeaders)
+            : base(httpHeaders)
         { }
     }
 }

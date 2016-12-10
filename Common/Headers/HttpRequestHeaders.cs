@@ -2,7 +2,7 @@
 
 namespace HttpServer.Common
 {
-    public sealed class WritableHeadersCollection : HeadersCollection
+    public sealed class HttpRequestHeaders : HttpHeaders
     {
         public string this[string headerName]
         {
@@ -17,16 +17,16 @@ namespace HttpServer.Common
             set { headers[headerName] = value; }
         }
 
-        public WritableHeadersCollection()
+        public HttpRequestHeaders()
             : base(new Dictionary<string, string>())
         { }
 
-        public WritableHeadersCollection(Dictionary<string, string> headers)
+        public HttpRequestHeaders(Dictionary<string, string> headers)
             : base(headers)
         { }
 
-        public WritableHeadersCollection(HeadersCollection headersCollection)
-            : base(headersCollection)
+        public HttpRequestHeaders(HttpHeaders httpHeaders)
+            : base(httpHeaders)
         { }
     }
 }

@@ -3,7 +3,7 @@ using System.Linq;
 
 namespace HttpServer.Common
 {
-    public abstract class HeadersCollection
+    public abstract class HttpHeaders
     {
         protected readonly Dictionary<string, string> headers;
 
@@ -11,11 +11,11 @@ namespace HttpServer.Common
         public string[] Keys => headers.Keys.ToArray();
 
 
-        protected HeadersCollection(HeadersCollection headersCollection)
-            : this(new Dictionary<string, string>(headersCollection?.headers ?? new Dictionary<string, string>()))
+        protected HttpHeaders(HttpHeaders httpHeaders)
+            : this(new Dictionary<string, string>(httpHeaders?.headers ?? new Dictionary<string, string>()))
         { }
 
-        protected HeadersCollection(Dictionary<string, string> headers)
+        protected HttpHeaders(Dictionary<string, string> headers)
         {
             this.headers = headers ?? new Dictionary<string, string>();
         }
