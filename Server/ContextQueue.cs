@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Net;
 using System.Threading;
+using log4net;
 
 namespace HttpServer.Server
 {
@@ -10,15 +11,16 @@ namespace HttpServer.Server
         private readonly Queue<HttpListenerContext> queue;
         private CancellationTokenSource tokenSource;
         private volatile bool running;
-        
+        private readonly ILog log;
+
         public bool IsRunnig => running;
 
-
-        public ContextQueue(int capacity = 20000)
+        public ContextQueue(ILog log, int capacity = 20000)
         {
             queue = new Queue<HttpListenerContext>(capacity);
             tokenSource = null;
             running = false;
+            this.log = log;
         }
 
         public void Enqueue(HttpListenerContext task)
@@ -28,6 +30,7 @@ namespace HttpServer.Server
                 if (!IsRunnig) return;
                 queue.Enqueue(task);
                 Monitor.Pulse(queue);
+                log.Debug("Enqueue");
             }
         }
 
@@ -35,10 +38,12 @@ namespace HttpServer.Server
         {
             lock (queue)
             {
-                if (queue.Count == 0 || IsRunnig)
+                log.Debug("Wait");
+                while (queue.Count == 0 && IsRunnig)
                 {
                     Monitor.Wait(queue);
                 }
+                log.Debug("Dequeue");
                 return IsRunnig ? queue.Dequeue() : null;
             }
         }
@@ -52,6 +57,7 @@ namespace HttpServer.Server
                 token?.Register(() => tokenSource.Cancel());
                 tokenSource.Token.Register(StopQueue);
                 running = true;
+                log.Info("ContextQueue is running");
             }
         }
 
@@ -66,10 +72,11 @@ namespace HttpServer.Server
             lock (queue)
             {
                 if (!IsRunnig) return;
-                tokenSource = null;
-                Monitor.PulseAll(queue);
                 queue.Clear();
                 running = false;
+                tokenSource = null;
+                Monitor.PulseAll(queue);
+                log.Debug("ContextQueue is stopped");
             }
         }
 

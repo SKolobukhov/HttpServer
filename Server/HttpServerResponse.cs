@@ -7,11 +7,10 @@ namespace HttpServer.Server
     public sealed class HttpServerResponse
     {
         public readonly HttpStatusCode Code;
-        private readonly HttpResponseHeaders headers;
+        public readonly HttpResponseHeaders Headers;
         public readonly IHttpContent Body;
 
-        public bool HasHeaders => headers != null && headers.Count > 0;
-        public HttpResponseHeaders Headers => headers ?? new HttpResponseHeaders();
+        public bool HasHeaders => Headers != null && Headers.Count > 0;
 
 
         public HttpServerResponse(HttpStatusCode code)
@@ -26,7 +25,7 @@ namespace HttpServer.Server
         public HttpServerResponse(HttpStatusCode code, HttpResponseHeaders headers, IHttpContent body)
         {
             Code = code;
-            this.headers = headers;
+            this.Headers = headers;
             Body = body;
         }
         

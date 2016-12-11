@@ -10,6 +10,7 @@ namespace HttpServer.Common
         long Length { get; }
         ContentType ContentType { get; set; }
         Encoding Charset { get; set; }
+        ContentRange ContentRange { get; set; }
 
         void CopyTo(Stream outputStream);
         Task CopyToAsync(Stream outputStream);

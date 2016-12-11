@@ -92,7 +92,7 @@ namespace HttpServer.Server
             catch (ThreadAbortException) { }
             catch (Exception exception)
             {
-                log.Error($"[Worker_{index}] An exception occured in requests pipeline: {exception.Message}", exception);
+                log.Error($"Worker{index}: An exception occured in requests pipeline: {exception.Message}", exception);
                 StartThread(index);
             }
         }

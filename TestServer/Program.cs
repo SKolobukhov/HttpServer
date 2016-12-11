@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Net;
+using System.Threading;
+using HttpServer.Server;
 using log4net;
 using log4net.Core;
 
@@ -10,11 +12,21 @@ namespace TestServer
         static void Main(string[] args)
         {
             var log = new ConsoleLog();
-            var server = new HttpServer.Server.HttpServer(1, null, AuthenticationSchemes.Anonymous, log);
+            var server = new HttpServer.Server.HttpServer(1, new RequestHandler(), AuthenticationSchemes.Anonymous, log);
             server.Start(789);
             Console.ReadKey();
             server.Stop();
             Console.ReadKey();
+        }
+    }
+
+    public class RequestHandler : IRequestHandler
+    {
+        public void HandleContext(ListenerContext listenerContext, ILog log, CancellationToken token)
+        {
+            log.Debug(listenerContext.Request);
+            listenerContext.Response.Respond(new HttpServerResponse(HttpStatusCode.OK));
+            log.Debug(listenerContext.Response);
         }
     }
 
@@ -182,7 +194,7 @@ namespace TestServer
 
         public void Error(object message, Exception exception)
         {
-            throw new NotImplementedException();
+            Error(message.ToString(), exception);
         }
 
         public void Error(string message)
@@ -199,12 +211,12 @@ namespace TestServer
             CallsErrorCount++;
             Console.WriteLine(Format("ERROR {0}", exception));
         }
-        public void Error(string message, Exception exc)
+        public void Error(string message, Exception exception)
         {
             if (!IsErrorEnabled)
                 return;
             CallsErrorCount++;
-            Console.WriteLine(Format("ERROR {0} {1}", message, exc));
+            Console.WriteLine(Format("ERROR {0} {1}", message, exception));
         }
         public void ErrorFormat(string format, object arg0)
         {
