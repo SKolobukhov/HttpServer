@@ -1,10 +1,9 @@
 ﻿using System;
 using System.Linq;
 using System.Threading;
-using HttpServer.Common;
 using log4net;
 
-namespace HttpServer.Server
+namespace HttpServer.Server.Utility
 {
     internal class ThreadPool : IDisposable
     {

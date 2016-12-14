@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Threading;
-using HttpServer.Common;
 
 namespace HttpServer.Server
 {

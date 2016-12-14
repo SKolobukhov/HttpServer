@@ -2,7 +2,7 @@
 using log4net;
 using log4net.Core;
 
-namespace HttpServer.Common
+namespace HttpServer.Server
 {
     public class LogWithPrefix: ILog
     {

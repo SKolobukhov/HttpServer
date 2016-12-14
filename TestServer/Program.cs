@@ -2,7 +2,6 @@
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
-using HttpServer.Common;
 using HttpServer.Server;
 using log4net;
 
@@ -13,10 +12,10 @@ namespace TestServer
         static void Main(string[] args)
         {
             var log = new ConsoleLog();
-            var t = new RouteTableBuilder()
+            var routeTableBuilder = new RouteTableBuilder()
                 .MapHandler(HttpMethod.Get, "hello", new RequestHandler())
                 .MapHandler(HttpMethod.Get, "hello/123", new RequestHandler());
-            var handler = new RoutingHandler(t.Build());
+            var handler = new RoutingHandler(routeTableBuilder.Build());
             var server = new HttpServer.Server.HttpServer(2, handler, log);
             server.Start(789);
             Console.ReadKey();

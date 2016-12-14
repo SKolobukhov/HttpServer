@@ -4,7 +4,7 @@ using System.Net;
 using System.Threading;
 using log4net;
 
-namespace HttpServer.Server
+namespace HttpServer.Server.Utility
 {
     internal class ContextQueue: IDisposable
     {
