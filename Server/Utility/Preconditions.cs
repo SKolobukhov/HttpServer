@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace HttpServer.Server.Utility
+namespace HttpServer.Server
 {
     internal static class Preconditions
     {

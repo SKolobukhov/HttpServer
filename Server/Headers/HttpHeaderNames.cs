@@ -1,4 +1,4 @@
-﻿namespace HttpServer.Server.Headers
+﻿namespace HttpServer.Server
 {
     public static class HttpHeaderNames
     {

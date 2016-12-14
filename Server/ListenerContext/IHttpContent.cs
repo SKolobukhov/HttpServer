@@ -2,7 +2,6 @@
 using System.Net.Mime;
 using System.Text;
 using System.Threading.Tasks;
-using HttpServer.Server.Headers;
 
 namespace HttpServer.Server
 {

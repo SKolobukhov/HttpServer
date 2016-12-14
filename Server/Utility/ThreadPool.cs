@@ -3,7 +3,7 @@ using System.Linq;
 using System.Threading;
 using log4net;
 
-namespace HttpServer.Server.Utility
+namespace HttpServer.Server
 {
     internal class ThreadPool : IDisposable
     {

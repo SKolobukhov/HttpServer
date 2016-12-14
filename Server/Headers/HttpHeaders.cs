@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 
-namespace HttpServer.Server.Headers
+namespace HttpServer.Server
 {
     public abstract class HttpHeaders: IEnumerable<KeyValuePair<string, string>>
     {

@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace HttpServer.Server.Headers
+namespace HttpServer.Server
 {
     public sealed class HttpResponseHeaders : HttpHeaders
     {

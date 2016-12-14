@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Net;
 using System.Threading;
-using HttpServer.Server.Utility;
 using log4net;
-using ThreadPool = HttpServer.Server.Utility.ThreadPool;
 
 namespace HttpServer.Server
 {

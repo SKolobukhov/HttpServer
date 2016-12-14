@@ -1,8 +1,7 @@
 ﻿using System;
 using System.Text.RegularExpressions;
-using HttpServer.Server.Utility;
 
-namespace HttpServer.Server.Headers
+namespace HttpServer.Server
 {
     public class ContentRange
     {

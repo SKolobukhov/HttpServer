@@ -3,7 +3,6 @@ using System.Net;
 using System.Net.Mime;
 using System.Text;
 using System.Threading.Tasks;
-using HttpServer.Server.Headers;
 using log4net;
 
 namespace HttpServer.Server

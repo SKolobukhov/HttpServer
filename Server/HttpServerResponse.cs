@@ -1,6 +1,5 @@
 ﻿using System.Net;
 using System.Text;
-using HttpServer.Server.Headers;
 
 namespace HttpServer.Server
 {
