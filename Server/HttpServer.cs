@@ -3,39 +3,41 @@ using System.Net;
 using System.Threading;
 using HttpServer.Common;
 using log4net;
-using log4net.Core;
 
 namespace HttpServer.Server
 {
     public class HttpServer : IHttpServer
     {
         private readonly ILog log;
-        private readonly HttpListener listener;
-        private readonly ThreadPool threadPool;
-        private readonly ContextQueue contextQueue;
-        private bool disposed;
-        private Thread listenerThread;
-        private volatile bool running;
-        private IRequestHandler handler;
+        private readonly AuthenticationSchemes authenticationSchemes;
+        private readonly Func<Uri, AuthenticationSchemes> authenticationSelector;
+
+        private readonly object locker = new object();
         private CancellationTokenSource tokenSource;
+        private volatile bool running;
+        private bool disposed;
+
+        private readonly ContextQueue contextQueue;
+        private readonly ThreadPool threadPool;
+
 
         public bool IsRunning => running;
 
 
-        public HttpServer(int throttling, IRequestHandler handler, AuthenticationSchemes authenticationSchemes, ILog log)
+        public HttpServer(int throttling, IRequestHandler handler, ILog log,
+            AuthenticationSchemes authenticationSchemes = AuthenticationSchemes.Anonymous,
+            Func<Uri, AuthenticationSchemes> authenticationSelector = null)
         {
             Preconditions.EnsureNotNull(log, "log");
-            //Preconditions.EnsureNotNull(handler, "handler");
+            Preconditions.EnsureNotNull(handler, "handler");
             Preconditions.EnsureCondition(throttling > 0, "throttling", "Worker threads count must be > 0.");
             this.log = log;
-            this.handler = handler;
-            listener = new HttpListener
-            {
-                IgnoreWriteExceptions = false,
-                AuthenticationSchemes = authenticationSchemes
-            };
-            threadPool = new ThreadPool(throttling, ProcessContextsRoutine, log.WithPrefix("Workers"));
+            this.authenticationSchemes = authenticationSchemes;
+            this.authenticationSelector = authenticationSelector;
             contextQueue = new ContextQueue(log.WithPrefix("ContextQueue"));
+            threadPool = new ThreadPool(throttling,
+                (token, workerLog) => ProcessContextsRoutine(contextQueue, handler, token, workerLog),
+                log.WithPrefix("Workers"));
         }
 
         public void Start(ushort port = 80, HttpScheme scheme = HttpScheme.Http, CancellationToken? token = null)
@@ -45,33 +47,37 @@ namespace HttpServer.Server
             tokenSource = new CancellationTokenSource();
             token?.Register(() => tokenSource.Cancel());
             tokenSource.Token.Register(StopServer);
-            StartServer(prefix);
+            StartServer(prefix, tokenSource.Token);
         }
 
         [Obsolete]
         public void Stop()
         {
-            tokenSource?.Cancel();
+            if (IsRunning)
+            {
+                tokenSource?.Cancel();
+            }
         }
 
-        private void StartServer(string prefix)
+        private void StartServer(string prefix, CancellationToken token)
         {
-            lock (listener)
+            lock (locker)
             {
                 if (!IsRunning)
                 {
-                    contextQueue.Start(tokenSource.Token);
-                    listener.Prefixes.Clear();
-                    listener.Prefixes.Add(prefix);
-                    listener.Start();
-                    listenerThread = new Thread(Listen)
-                    {
-                        IsBackground = true,
-                        Priority = ThreadPriority.Highest,
-                        Name = "HttpServer-Listener-" + Guid.NewGuid()
-                    };
+                    contextQueue.Start(token);
+                    var listenerThread =
+                        new Thread(
+                            () =>
+                                Listen(prefix, authenticationSchemes, authenticationSelector, token,
+                                    log.WithPrefix("Listener"), contextQueue))
+                        {
+                            IsBackground = true,
+                            Priority = ThreadPriority.Highest,
+                            Name = "HttpServer-Listener-" + Guid.NewGuid()
+                        };
                     listenerThread.Start();
-                    threadPool.Start(tokenSource.Token);
+                    threadPool.Start(token);
                     running = true;
                     log.Info($"Start listening for prefix {prefix}");
                 }
@@ -80,13 +86,10 @@ namespace HttpServer.Server
 
         private void StopServer()
         {
-            lock (listener)
+            lock (locker)
             {
                 if (IsRunning)
                 {
-                    listener.Stop();
-                    listenerThread.Abort();
-                    listenerThread.Join();
                     tokenSource = null;
                     running = false;
                     log.Info("Stop listening");
@@ -96,29 +99,33 @@ namespace HttpServer.Server
 
         public void Dispose()
         {
-            if (disposed)
-            {
-                return;
-            }
+            if (disposed) return;
             disposed = true;
             if (IsRunning)
             {
-                StopServer();
+                tokenSource?.Cancel();
             }
-            listener.Close();
             threadPool.Dispose();
         }
 
-        public void SetAuthenticationSelector(Func<Uri, AuthenticationSchemes> authenticationSelector)
+        private static void Listen(string prefix, AuthenticationSchemes authenticationSchemes,
+            Func<Uri, AuthenticationSchemes> authenticationSelector,
+            CancellationToken token, ILog log, ContextQueue contextQueue)
         {
-            listener.AuthenticationSchemeSelectorDelegate = request => authenticationSelector(request.Url);
-        }
-
-        private void Listen()
-        {
-            var log = this.log.WithPrefix("Listener");
+            var listener = new HttpListener
+            {
+                IgnoreWriteExceptions = false,
+                AuthenticationSchemes = authenticationSchemes,
+                Prefixes = {prefix}
+            };
+            if (authenticationSelector != null)
+            {
+                listener.AuthenticationSchemeSelectorDelegate = request => authenticationSelector(request.Url);
+            }
+            listener.Start();
+            token.Register(listener.Stop);
             log.Info("Listener is running");
-            while (!tokenSource.Token.IsCancellationRequested)
+            while (!token.IsCancellationRequested)
             {
                 try
                 {
@@ -131,10 +138,6 @@ namespace HttpServer.Server
                     {
                         Thread.Sleep(0);
                     }
-                }
-                catch (ThreadAbortException)
-                {
-                    break;
                 }
                 catch (HttpListenerException exception)
                 {
@@ -152,33 +155,33 @@ namespace HttpServer.Server
             log.Info("Listener is stopped");
         }
 
-        private void ProcessContextsRoutine(CancellationToken token)
+        private static void ProcessContextsRoutine(ContextQueue contextQueue, IRequestHandler handler, CancellationToken token, ILog log)
         {
             while (!token.IsCancellationRequested)
             {
-                var listenerContext = contextQueue.Dequeue();
+                var listenerContext = contextQueue.Dequeue(token);
                 if (listenerContext == null)
                 {
                     return;
                 }
 
                 var prefix = "RE-" + listenerContext.Request.GetHashCode();
-                var handlerLog = new LogWithPrefix(log, prefix);
+                var handlerLog = log.WithPrefix(prefix);
                 var context = new ListenerContext(listenerContext, handlerLog);
                 try
                 {
-                    handler.HandleContext(context, handlerLog, token);
+                    handler.HandleContextAsync(context, handlerLog, token).Wait(token);
                 }
                 catch (Exception exception)
                 {
-                    handlerLog.Error($"Error in handling request from {context.Request.Request.RemoteEndPoint}. Request: '{context.Request}'", exception);
+                    handlerLog.Error($"Error in handling request that caused failure: {exception.Message}.\r\n'{context.Request}'", exception);
                     if (context.Response.ResponseInitiated)
                     {
                         continue;
                     }
                     try
                     {
-                        context.Response.Respond(new HttpServerResponse(HttpStatusCode.InternalServerError));
+                        context.Response.RespondAsync(new HttpServerResponse(HttpStatusCode.InternalServerError)).Wait(token);
                     }
                     catch (ObjectDisposedException) { }
                     catch (Exception anotherException)

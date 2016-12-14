@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
 using System.Threading;
+using HttpServer.Common;
 using log4net;
 
 namespace HttpServer.Server
@@ -9,19 +10,17 @@ namespace HttpServer.Server
     {
         private readonly ILog log;
         private readonly Thread[] workerThreads;
-        private readonly Action<CancellationToken> workerAction;
+        private readonly Action<CancellationToken, ILog> workerAction;
 
         private volatile bool running;
         private CancellationTokenSource tokenSource;
         public bool IsRunning => running;
 
-        public ThreadPool(int multiplier, Action<CancellationToken> workerAction, ILog log)
+        public ThreadPool(int multiplier, Action<CancellationToken, ILog> workerAction, ILog log)
         {
             this.log = log;
             this.workerAction = workerAction;
             workerThreads = new Thread[multiplier];
-            tokenSource = null;
-            running = false;
         }
 
         public void Start(CancellationToken? token = null)
@@ -37,6 +36,14 @@ namespace HttpServer.Server
         public void Stop()
         {
             tokenSource?.Cancel();
+        }
+
+        public void Dispose()
+        {
+            if (IsRunning)
+            {
+                tokenSource.Cancel();
+            }
         }
 
         private void StartThreadPool()
@@ -63,20 +70,12 @@ namespace HttpServer.Server
             log.Info("Workers are stopped");
         }
 
-        public void Dispose()
-        {
-            if (IsRunning)
-            {
-                tokenSource.Cancel();
-            }
-        }
-
         private void StartThread(int threadIndex)
         {
             var thread = new Thread(WorkerRoutine)
             {
                 IsBackground = true,
-                Name = "HttpServer-Worker-" + Guid.NewGuid()
+                Name = "HttpServer-Worker-" + threadIndex
             };
             thread.Start(threadIndex);
             workerThreads[threadIndex] = thread;
@@ -84,16 +83,17 @@ namespace HttpServer.Server
 
         private void WorkerRoutine(object indexObject)
         {
-            var index = (int)indexObject;
+            var threadIndex = (int) indexObject;
+            var workerLog = this.log.WithPrefix("Worker-" + threadIndex);
             try
             {
-                workerAction(tokenSource.Token);
+                workerAction(tokenSource.Token, workerLog);
             }
             catch (ThreadAbortException) { }
             catch (Exception exception)
             {
-                log.Error($"Worker{index}: An exception occured in requests pipeline: {exception.Message}", exception);
-                StartThread(index);
+                workerLog.Error($"An exception occured in requests pipeline: {exception.Message}", exception);
+                StartThread(threadIndex);
             }
         }
     }

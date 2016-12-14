@@ -1,8 +1,8 @@
 ﻿using System;
-using System.IO;
 using System.Net;
 using System.Net.Mime;
 using System.Text;
+using System.Threading.Tasks;
 using HttpServer.Common;
 using log4net;
 
@@ -24,14 +24,14 @@ namespace HttpServer.Server
             this.context = context;
         }
 
-        public void Respond(HttpServerResponse response)
+        public async Task RespondAsync(HttpServerResponse response)
         {
             CheckResponseContent(response);
             responseInitiated = true;
             SetStatusCode(response);
             SetHeaders(response);
-            WriteBody(response);
-            CloseResponse();
+            await WriteBodyAsync(response).ConfigureAwait(false);
+            await Task.Run(() => CloseResponse()).ConfigureAwait(false);
         }
 
         public void Dispose()
@@ -70,7 +70,7 @@ namespace HttpServer.Server
             context.Response.Headers = response.Headers;
         }
 
-        private void WriteBody(HttpServerResponse response)
+        private async Task WriteBodyAsync(HttpServerResponse response)
         {
             var body = response.Body;
             if (body != null)
@@ -88,7 +88,7 @@ namespace HttpServer.Server
                 }
                 try
                 {
-                    response.Body.CopyTo(context.Response.OutputStream);
+                    await response.Body.CopyToAsync(context.Response.OutputStream).ConfigureAwait(false);
                 }
                 catch (Exception exception)
                 {

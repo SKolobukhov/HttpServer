@@ -17,10 +17,8 @@ namespace HttpServer.Server
 
         public ContextQueue(ILog log, int capacity = 20000)
         {
-            queue = new Queue<HttpListenerContext>(capacity);
-            tokenSource = null;
-            running = false;
             this.log = log;
+            queue = new Queue<HttpListenerContext>(capacity);
         }
 
         public void Enqueue(HttpListenerContext task)
@@ -30,21 +28,25 @@ namespace HttpServer.Server
                 if (!IsRunnig) return;
                 queue.Enqueue(task);
                 Monitor.Pulse(queue);
-                log.Debug("Enqueue");
             }
         }
 
-        public HttpListenerContext Dequeue()
+        public HttpListenerContext Dequeue(CancellationToken token)
         {
+            token.Register(() =>
+            {
+                lock (queue)
+                {
+                    Monitor.PulseAll(queue);
+                }
+            });
             lock (queue)
             {
-                log.Debug("Wait");
-                while (queue.Count == 0 && IsRunnig)
+                while (queue.Count == 0 && IsRunnig && !token.IsCancellationRequested)
                 {
                     Monitor.Wait(queue);
                 }
-                log.Debug("Dequeue");
-                return IsRunnig ? queue.Dequeue() : null;
+                return IsRunnig && !token.IsCancellationRequested ? queue.Dequeue() : null;
             }
         }
 
@@ -64,7 +66,10 @@ namespace HttpServer.Server
         [Obsolete]
         public void Stop()
         {
-            tokenSource?.Cancel();
+            if (IsRunnig)
+            {
+                tokenSource?.Cancel();
+            }
         }
 
         private void StopQueue()
@@ -76,13 +81,16 @@ namespace HttpServer.Server
                 running = false;
                 tokenSource = null;
                 Monitor.PulseAll(queue);
-                log.Debug("ContextQueue is stopped");
+                log.Info("ContextQueue is stopped");
             }
         }
 
         public void Dispose()
         {
-            StopQueue();   
+            if (IsRunnig)
+            {
+                tokenSource?.Cancel();
+            } 
         }
     }
 }

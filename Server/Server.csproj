@@ -38,16 +38,21 @@
     <Reference Include="System.Core" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ContextQueue.cs" />
-    <Compile Include="HttpRequestWrapper.cs" />
+    <Compile Include="ListenerContext\ContextQueue.cs" />
+    <Compile Include="ListenerContext\HttpRequestWrapper.cs" />
     <Compile Include="HttpServer.cs" />
     <Compile Include="HttpServerResponse.cs" />
     <Compile Include="IHttpServer.cs" />
-    <Compile Include="IRequestHandler.cs" />
-    <Compile Include="ListenerContext.cs" />
-    <Compile Include="HttpResponseWrapper.cs" />
+    <Compile Include="RequestHandlers\IRequestHandler.cs" />
+    <Compile Include="ListenerContext\ListenerContext.cs" />
+    <Compile Include="ListenerContext\HttpResponseWrapper.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="ThreadPool.cs" />
+    <Compile Include="ListenerContext\ThreadPool.cs" />
+    <Compile Include="RequestHandlers\IRoutedHandler.cs" />
+    <Compile Include="RequestHandlers\RouteMatchResult.cs" />
+    <Compile Include="RequestHandlers\RouteTable.cs" />
+    <Compile Include="RequestHandlers\RouteTableBuilder.cs" />
+    <Compile Include="RequestHandlers\RoutingHandler.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Common\Common.csproj">
