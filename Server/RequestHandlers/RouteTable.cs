@@ -13,6 +13,7 @@ namespace HttpServer.Server
 
         internal RouteMatchResult TryMatch(string method, string requestUri, out IRoutedHandler handler)
         {
+            requestUri = requestUri.Trim('/');
             handler = null;
             if (!map.ContainsKey(requestUri))
             {

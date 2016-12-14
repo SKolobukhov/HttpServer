@@ -1,10 +1,11 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
+using log4net;
 
 namespace HttpServer.Server
 {
     public interface IRoutedHandler
     {
-        Task<HttpServerResponse> HandleRequestAsync(HttpRequestWrapper request, CancellationToken token);
+        Task<HttpServerResponse> HandleRequestAsync(HttpRequestWrapper request, ILog log, CancellationToken token);
     }
 }
