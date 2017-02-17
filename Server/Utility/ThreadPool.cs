@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Linq;
 using System.Threading;
 using log4net;
 
@@ -8,35 +7,37 @@ namespace HttpServer.Server
     internal class ThreadPool : IDisposable
     {
         private readonly ILog log;
-        private readonly Thread[] workerThreads;
-        private readonly Action<CancellationToken, ILog> workerAction;
+        private readonly Thread[] threads;
+        private readonly Action<ILog, CancellationToken> action;
 
-        private volatile bool running;
+        private int running;
         private CancellationTokenSource tokenSource;
-        public bool IsRunning => running;
 
-        public ThreadPool(int multiplier, Action<CancellationToken, ILog> workerAction, ILog log)
+        public bool IsRunning => running == 1;
+
+
+        public ThreadPool(int multiplier, Action<ILog, CancellationToken> action, ILog log)
         {
             this.log = log;
-            this.workerAction = workerAction;
-            workerThreads = new Thread[multiplier];
+            this.action = action;
+            threads = new Thread[multiplier];
         }
 
         public void Start(CancellationToken? token = null)
         {
-            if (IsRunning) return;
+            if (Interlocked.CompareExchange(ref running, 1, 0) != 0)
+            {
+                throw new ApplicationException("ThreadPool is already running.");
+            }
             tokenSource = new CancellationTokenSource();
             token?.Register(() => tokenSource.Cancel());
             tokenSource.Token.Register(StopThreadPool);
-            StartThreadPool();
+            for (var index = 0; index < threads.Length; index++)
+            {
+                StartThread(index);
+            }
         }
-
-        [Obsolete]
-        public void Stop()
-        {
-            tokenSource?.Cancel();
-        }
-
+        
         public void Dispose()
         {
             if (IsRunning)
@@ -44,56 +45,48 @@ namespace HttpServer.Server
                 tokenSource.Cancel();
             }
         }
-
-        private void StartThreadPool()
-        {
-            if (IsRunning) return;
-            for (var threadIndex = 0; threadIndex < workerThreads.Length; threadIndex++)
-            {
-                StartThread(threadIndex);
-            }
-            running = true;
-            log.Info("Workers are running");
-        }
-
+        
         private void StopThreadPool()
         {
-            if (!IsRunning) return;
+            if (Interlocked.CompareExchange(ref running, 0, 1) != 1)
+            {
+                throw new ApplicationException("ThreadPool is not running.");
+            }
             tokenSource = null;
-            foreach (var workThread in workerThreads.Where(workerThread => workerThread.ThreadState == ThreadState.Running))
+            foreach (var workThread in threads)
             {
                 workThread.Abort();
                 workThread.Join();
             }
-            running = false;
-            log.Info("Workers are stopped");
         }
 
-        private void StartThread(int threadIndex)
+        private void StartThread(int index)
         {
             var thread = new Thread(WorkerRoutine)
             {
                 IsBackground = true,
-                Name = "HttpServer-Worker-" + threadIndex
+                Name = "HttpServer-Worker" + index
             };
-            thread.Start(threadIndex);
-            workerThreads[threadIndex] = thread;
+            thread.Start(index);
+            threads[index] = thread;
         }
 
         private void WorkerRoutine(object indexObject)
         {
-            var threadIndex = (int) indexObject;
-            var workerLog = this.log.WithPrefix("Worker-" + threadIndex);
+            var workerLog = log.WithPrefix("Worker" + indexObject);
+            workerLog.Info("Worker are running");
             try
             {
-                workerAction(tokenSource.Token, workerLog);
+                action(workerLog, tokenSource.Token);
             }
             catch (ThreadAbortException) { }
             catch (Exception exception)
             {
-                workerLog.Error($"An exception occured in requests pipeline: {exception.Message}", exception);
-                StartThread(threadIndex);
+                workerLog.Error($"Fail with message: {exception.Message}", exception);
+                workerLog.Info("Worker is stopped");
+                StartThread((int)indexObject);
             }
+            workerLog.Info("Worker is stopped");
         }
     }
 }

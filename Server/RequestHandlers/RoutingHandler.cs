@@ -26,13 +26,9 @@ namespace HttpServer.Server
                     response = await handler.HandleRequestAsync(listenerContext.Request, log, token).ConfigureAwait(false);
                     break;
                 case RouteMatchResult.UnrecognizedUri:
-                    log.Warn($"Request url does not match any template: '{listenerContext.Request.Request.Url.AbsoluteUri}'");
                     response = new HttpServerResponse(HttpStatusCode.BadRequest);
                     break;
                 case RouteMatchResult.UnrecognizedMethod:
-                    log.Error(string.Format("Request method ('{0}') is not supported for url '{1}'.", 
-                        listenerContext.Request.Request.HttpMethod, 
-                        listenerContext.Request.Request.Url.AbsoluteUri));
                     response = new HttpServerResponse(HttpStatusCode.MethodNotAllowed);
                     break;
                 default:

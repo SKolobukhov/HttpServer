@@ -27,8 +27,11 @@ namespace HttpServer.Server
         {
             CheckResponseContent(response);
             responseInitiated = true;
-            SetStatusCode(response);
-            SetHeaders(response);
+            context.Response.StatusCode = (int)response.Code;
+            if (response.HasHeaders)
+            {
+                context.Response.Headers = response.Headers;
+            }
             await WriteBodyAsync(response).ConfigureAwait(false);
             await Task.Run(() => CloseResponse()).ConfigureAwait(false);
         }
@@ -43,32 +46,18 @@ namespace HttpServer.Server
             }
             catch (Exception exception)
             {
-                log.Error($"Error in closing response. Request = '{context.Request}'", exception);
+                log.Error($"Error in closing response. Request: '{context.Request}'", exception);
                 try
                 {
                     context.Response.Abort();
                 }
                 catch (Exception anotherException)
                 {
-                    log.Error($"Error in aborting response. Request = '{context.Request}'", anotherException);
+                    log.Error($"Error in aborting response. Request: '{context.Request}'", anotherException);
                 }
             }
         }
-
-        private void SetStatusCode(HttpServerResponse response)
-        {
-            context.Response.StatusCode = (int)response.Code;
-        }
-
-        private void SetHeaders(HttpServerResponse response)
-        {
-            if (!response.HasHeaders)
-            {
-                return;
-            }
-            context.Response.Headers = response.Headers;
-        }
-
+        
         private async Task WriteBodyAsync(HttpServerResponse response)
         {
             var body = response.Body;
@@ -94,7 +83,10 @@ namespace HttpServer.Server
                     log.Error("Error in writing response body", exception);
                 }
             }
-            else context.Response.ContentLength64 = 0;
+            else
+            {
+                context.Response.ContentLength64 = 0;
+            }
         }
 
         private void CloseResponse()

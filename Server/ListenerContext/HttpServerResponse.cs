@@ -5,9 +5,9 @@ namespace HttpServer.Server
 {
     public sealed class HttpServerResponse
     {
+        public readonly IHttpContent Body;
         public readonly HttpStatusCode Code;
         public readonly HttpResponseHeaders Headers;
-        public readonly IHttpContent Body;
 
         public bool HasHeaders => Headers != null && Headers.Count > 0;
 
@@ -23,9 +23,9 @@ namespace HttpServer.Server
 
         public HttpServerResponse(HttpStatusCode code, HttpResponseHeaders headers, IHttpContent body)
         {
-            Code = code;
-            this.Headers = headers;
             Body = body;
+            Code = code;
+            Headers = headers;
         }
         
         public override string ToString()

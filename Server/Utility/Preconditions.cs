@@ -8,8 +8,7 @@ namespace HttpServer.Server
         {
             if (!argumentCondition)
             {
-                format = format ?? string.Empty;
-                throw new ArgumentException(string.Format(format, args), argumentName);
+                throw new ArgumentException(string.Format(format ?? string.Empty, args), argumentName);
             }
         }
 
@@ -18,8 +17,7 @@ namespace HttpServer.Server
         {
             if (argument == null)
             {
-                format = format ?? string.Empty;
-                throw new ArgumentNullException(argumentName, string.Format(format, args));
+                throw new ArgumentNullException(argumentName, string.Format(format ?? string.Empty, args));
             }
         }
     }

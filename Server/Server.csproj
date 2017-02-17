@@ -44,13 +44,12 @@
     <Compile Include="Headers\HttpRequestHeaders.cs" />
     <Compile Include="Headers\HttpResponseHeaders.cs" />
     <Compile Include="HttpMethod.cs" />
-    <Compile Include="HttpScheme.cs" />
     <Compile Include="ListenerContext\IHttpContent.cs" />
-    <Compile Include="LogWithPrefix.cs" />
-    <Compile Include="Utility\ContextQueue.cs" />
+    <Compile Include="Utility\LogWithPrefix.cs" />
+    <Compile Include="Utility\FiexdBuffer.cs" />
     <Compile Include="ListenerContext\HttpRequestWrapper.cs" />
     <Compile Include="HttpServer.cs" />
-    <Compile Include="HttpServerResponse.cs" />
+    <Compile Include="ListenerContext\HttpServerResponse.cs" />
     <Compile Include="IHttpServer.cs" />
     <Compile Include="RequestHandlers\IRequestHandler.cs" />
     <Compile Include="ListenerContext\ListenerContext.cs" />

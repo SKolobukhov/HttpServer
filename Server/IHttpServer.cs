@@ -8,7 +8,7 @@ namespace HttpServer.Server
         bool IsRunning { get; }
 
 
-        void Start(ushort port = 80, HttpScheme scheme = HttpScheme.Http, CancellationToken? token = null);
+        void Start(int port = 80, CancellationToken? token = null);
 
         [Obsolete]
         void Stop();
