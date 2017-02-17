@@ -29,9 +29,9 @@ namespace TestServer
 
         public async Task<HttpServerResponse> HandleRequestAsync(HttpRequestWrapper request, ILog log, CancellationToken token)
         {
-            log.Debug("|" + request.Request.RemoteEndPoint + ":" + request.Request.RawUrl + ":" + request.Request.QueryString["log"]);
-            //await Task.Delay(100, token).ConfigureAwait(false);
-            return new HttpServerResponse(HttpStatusCode.OK);
+            var message = "RawUrl: " + request.Request.RawUrl;
+            log.Debug(message);
+            return new HttpServerResponse(HttpStatusCode.OK, new StringContent(message));
         }
     }
 }

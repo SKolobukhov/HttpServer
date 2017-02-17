@@ -45,7 +45,10 @@
     <Compile Include="Headers\HttpRequestHeaders.cs" />
     <Compile Include="Headers\HttpResponseHeaders.cs" />
     <Compile Include="HttpMethod.cs" />
+    <Compile Include="ListenerContext\ByteArrayContent .cs" />
+    <Compile Include="ListenerContext\ContentType.cs" />
     <Compile Include="ListenerContext\IHttpContent.cs" />
+    <Compile Include="ListenerContext\StringContent .cs" />
     <Compile Include="Utility\LogWithPrefix.cs" />
     <Compile Include="Utility\FiexdBuffer.cs" />
     <Compile Include="ListenerContext\HttpRequestWrapper.cs" />

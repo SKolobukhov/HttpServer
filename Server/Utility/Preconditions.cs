@@ -20,5 +20,13 @@ namespace HttpServer.Server
                 throw new ArgumentNullException(argumentName, string.Format(format ?? string.Empty, args));
             }
         }
+
+        public static void EnsureArgumentRange(bool argumentRangeCondition, string argumentName, string format = null, params object[] args)
+        {
+            if (!argumentRangeCondition)
+            {
+                throw new ArgumentOutOfRangeException(argumentName, string.Format(format ?? string.Empty, args));
+            }
+        }
     }
 }

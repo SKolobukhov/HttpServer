@@ -64,7 +64,7 @@ namespace HttpServer.Server
             if (body != null)
             {
                 context.Response.ContentLength64 = body.Length;
-                var contentType = (body.ContentType ?? new ContentType()).ToString();
+                var contentType = (body.ContentType ?? ContentType.OctetStream).Type;
                 if (body.Charset != null)
                 {
                     contentType += "; charset=" + body.Charset.WebName;
