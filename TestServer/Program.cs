@@ -16,7 +16,7 @@ namespace TestServer
                 .MapHandler(HttpMethod.Get, "hello", new RequestHandler())
                 .MapHandler(HttpMethod.Get, "hello/123", new RequestHandler());
             var handler = new RoutingHandler(routeTableBuilder.Build());
-            var server = new HttpServer.Server.HttpServer(4, handler, log);
+            var server = new AsyncHttpServer(handler, log);
             server.Start(789);
             Console.ReadKey();
             server.Stop();

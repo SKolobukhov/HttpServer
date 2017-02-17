@@ -5,12 +5,10 @@ using log4net;
 
 namespace HttpServer.Server
 {
-    public class HttpServer : IHttpServer
+    public class AsyncHttpServer : IHttpServer
     {
         private readonly ILog log;
         private readonly IRequestHandler handler;
-        private readonly ThreadPool threadPool;
-        private readonly FiexdBuffer<HttpListenerContext> buffer;
         private readonly AuthenticationSchemes authenticationSchemes;
         private readonly Func<Uri, AuthenticationSchemes> authenticationSelector;
         private readonly object locker = new object();
@@ -20,19 +18,16 @@ namespace HttpServer.Server
         public bool IsRunning => tokenSource != null;
 
 
-        public HttpServer(int throttling, IRequestHandler handler, ILog log,
+        public AsyncHttpServer(IRequestHandler handler, ILog log,
             AuthenticationSchemes authenticationSchemes = AuthenticationSchemes.Anonymous,
             Func<Uri, AuthenticationSchemes> authenticationSelector = null)
         {
             Preconditions.EnsureNotNull(log, "log");
             Preconditions.EnsureNotNull(handler, "handler");
-            Preconditions.EnsureCondition(throttling > 0, "throttling", "Worker threads count must be > 0.");
             this.log = log;
             this.handler = handler;
-            buffer = new FiexdBuffer<HttpListenerContext>();
             this.authenticationSchemes = authenticationSchemes;
             this.authenticationSelector = authenticationSelector ?? (_ => authenticationSchemes);
-            threadPool = new ThreadPool(throttling, HandleContext, log);
         }
 
         public void Start(int port = 80, CancellationToken? token = null)
@@ -55,25 +50,21 @@ namespace HttpServer.Server
                 var listener = new Thread(t => Listen(prefix, (CancellationToken)t))
                 {
                     IsBackground = true,
-                    Priority = ThreadPriority.Highest,
-                    Name = "HttpServer-Listener-" + Guid.NewGuid()
+                    Priority = ThreadPriority.Highest
                 };
                 listener.Start(tokenSource.Token);
-                threadPool.Start(tokenSource.Token);
-                log.Info("Server is running");
             }
         }
 
         [Obsolete]
         public void Stop()
         {
-            tokenSource?.Cancel();
+            Dispose();
         }
 
         public void Dispose()
         {
             tokenSource?.Cancel();
-            threadPool.Dispose();
         }
 
         private void Listen(string prefix, CancellationToken token)
@@ -85,10 +76,9 @@ namespace HttpServer.Server
                 AuthenticationSchemes = authenticationSchemes,
                 AuthenticationSchemeSelectorDelegate = r => authenticationSelector(r.Url)
             };
-            var listenerLog = log.WithPrefix("Listener");
-            listener.Start();
             token.Register(listener.Stop);
-            listenerLog.Info("Listener is running");
+            listener.Start();
+            log.Info("Server is running");
 
             while (!token.IsCancellationRequested)
             {
@@ -97,7 +87,7 @@ namespace HttpServer.Server
                     if (listener.IsListening)
                     {
                         var context = listener.GetContext();
-                        buffer.Enqueue(context, token);
+                        HandleContextAsync(context, token);
                     }
                     else
                     {
@@ -111,53 +101,48 @@ namespace HttpServer.Server
                     {
                         break;
                     }
-                    listenerLog.Error($"Network error while getting context. Code: {exception.ErrorCode}", exception);
+                    log.Error($"Network error while getting context. Code: {exception.ErrorCode}", exception);
                 }
                 catch (Exception exception)
                 {
-                    listenerLog.Error($"Error in getting context: {exception.Message}", exception);
+                    log.Error($"Error in getting context: {exception.Message}", exception);
                 }
             }
-            listenerLog.Info("Listener is stopped");
         }
 
-        private void HandleContext(ILog log, CancellationToken token)
+        private async void HandleContextAsync(HttpListenerContext listenerContext, CancellationToken token)
         {
-            while (!token.IsCancellationRequested)
+            if (listenerContext == null)
             {
-                var listenerContext = buffer.Dequeue(token);
-                if (listenerContext == null)
+                return;
+            }
+            var handlerLog = log.WithPrefix("RE-" + listenerContext.Request.GetHashCode());
+            var context = new ListenerContext(listenerContext, handlerLog);
+            try
+            {
+                await handler.HandleContextAsync(context, handlerLog, token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) { }
+            catch (AggregateException aggregateException)
+            {
+                foreach (var exception in aggregateException.InnerExceptions)
+                {
+                    handlerLog.Error($"Error in handling request: {exception.Message}. Request: {context.Request}.", exception);
+                }
+                if (context.Response.ResponseInitiated)
                 {
                     return;
                 }
-
-                var prefix = "RE-" + listenerContext.Request.GetHashCode();
-                var handlerLog = log.WithPrefix(prefix);
-                var context = new ListenerContext(listenerContext, handlerLog);
                 try
                 {
-                    handler.HandleContextAsync(context, handlerLog, token).Wait(token);
+                    await context.Response.RespondAsync(new HttpServerResponse(HttpStatusCode.InternalServerError))
+                        .WithCancellation(token)
+                        .ConfigureAwait(false);
                 }
-                catch (OperationCanceledException) { }
-                catch (AggregateException aggregateException)
+                catch (ObjectDisposedException) { }
+                catch (Exception anotherException)
                 {
-                    foreach (var exception in aggregateException.InnerExceptions)
-                    {
-                        handlerLog.Error($"Error in handling request: {exception.Message}. Request: {context.Request}", exception);
-                    }
-                    if (context.Response.ResponseInitiated)
-                    {
-                        continue;
-                    }
-                    try
-                    {
-                        context.Response.RespondAsync(new HttpServerResponse(HttpStatusCode.InternalServerError)).Wait();
-                    }
-                    catch (ObjectDisposedException) { }
-                    catch (Exception anotherException)
-                    {
-                        handlerLog.Error($"Error responding to request: {anotherException.Message}", anotherException);
-                    }
+                    handlerLog.Error($"Error responding to request: {anotherException.Message}.", anotherException);
                 }
             }
         }
